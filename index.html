@@ -1,12 +1,212 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ja">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+    <title>暗算チャレンジ</title>
+    <style>
+        :root {
+            color-scheme: light dark;
+        }
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: "Hiragino Sans", "Yu Gothic", monospace, sans-serif;
+            background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+        }
+        main {
+            width: min(90vw, 420px);
+            text-align: center;
+            padding: 2rem 2.5rem;
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 20px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(8px);
+            color: #eafcff;
+        }
+        h1 {
+            margin: 0 0 1rem;
+            font-size: 1.3rem;
+            letter-spacing: 0.05em;
+        }
+        #stats {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.95rem;
+            color: #9fe8ff;
+            margin-bottom: 1rem;
+        }
+        #question {
+            font-size: 2.6rem;
+            font-weight: bold;
+            margin: 1rem 0;
+            min-height: 3.2rem;
+        }
+        input[type="number"] {
+            width: 60%;
+            font-size: 1.4rem;
+            padding: 0.5rem;
+            text-align: center;
+            border-radius: 10px;
+            border: none;
+            outline: none;
+            background: #0d1b23;
+            color: #fff;
+            border: 2px solid transparent;
+        }
+        input[type="number"]:focus {
+            border-color: #4fd1ff;
+        }
+        button {
+            display: block;
+            margin: 1.2rem auto 0;
+            font-size: 1.05rem;
+            padding: 0.7rem 2rem;
+            border: none;
+            border-radius: 999px;
+            background: #4fd1ff;
+            color: #062028;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.1s ease, background 0.2s ease;
+        }
+        button:hover { background: #7fe0ff; }
+        button:active { transform: scale(0.95); }
+        #feedback {
+            min-height: 1.4rem;
+            margin-top: 0.8rem;
+            font-size: 1rem;
+        }
+        .ok { color: #7CFC00; }
+        .ng { color: #ff6b6b; }
+        .shake {
+            animation: shake 0.3s ease;
+        }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-8px); }
+            75% { transform: translateX(8px); }
+        }
+    </style>
 </head>
 <body>
-    <main>何かを書きました。</main>
-    <input type="button">これでいいのかな？</input>
+    <main>
+        <h1>🧮 暗算チャレンジ：60秒で何問解ける？</h1>
+        <div id="stats">
+            <span>正解数: <strong id="score">0</strong></span>
+            <span>残り: <strong id="time">60</strong>秒</span>
+        </div>
+        <div id="question">START</div>
+        <input type="number" id="answer" placeholder="答え" disabled>
+        <div id="feedback"></div>
+        <button id="startBtn">スタート</button>
+    </main>
+
+    <script>
+        const questionEl = document.getElementById("question");
+        const answerEl = document.getElementById("answer");
+        const feedbackEl = document.getElementById("feedback");
+        const scoreEl = document.getElementById("score");
+        const timeEl = document.getElementById("time");
+        const startBtn = document.getElementById("startBtn");
+
+        let score = 0;
+        let timeLeft = 60;
+        let timer = null;
+        let currentAnswer = 0;
+        let playing = false;
+
+        function randInt(min, max) {
+            return Math.floor(Math.random() * (max - min + 1)) + min;
+        }
+
+        function nextQuestion() {
+            const ops = ["+", "-", "×"];
+            const op = ops[randInt(0, 2)];
+            let a, b, answer, text;
+
+            if (op === "+") {
+                a = randInt(10, 99);
+                b = randInt(10, 99);
+                answer = a + b;
+                text = `${a} + ${b}`;
+            } else if (op === "-") {
+                a = randInt(10, 99);
+                b = randInt(10, a);
+                answer = a - b;
+                text = `${a} - ${b}`;
+            } else {
+                a = randInt(2, 12);
+                b = randInt(2, 12);
+                answer = a * b;
+                text = `${a} × ${b}`;
+            }
+
+            currentAnswer = answer;
+            questionEl.textContent = text;
+            answerEl.value = "";
+        }
+
+        function endGame() {
+            playing = false;
+            clearInterval(timer);
+            answerEl.disabled = true;
+            questionEl.textContent = "終了！";
+            feedbackEl.textContent = `${score} 問正解！おつかれさま`;
+            feedbackEl.className = "ok";
+            startBtn.textContent = "もう一度";
+        }
+
+        function startGame() {
+            score = 0;
+            timeLeft = 60;
+            playing = true;
+            scoreEl.textContent = score;
+            timeEl.textContent = timeLeft;
+            feedbackEl.textContent = "";
+            feedbackEl.className = "";
+            answerEl.disabled = false;
+            answerEl.focus();
+            startBtn.textContent = "リセット";
+            nextQuestion();
+
+            clearInterval(timer);
+            timer = setInterval(() => {
+                timeLeft--;
+                timeEl.textContent = timeLeft;
+                if (timeLeft <= 0) endGame();
+            }, 1000);
+        }
+
+        function checkAnswer() {
+            if (!playing) return;
+            if (answerEl.value === "") return;
+            const val = Number(answerEl.value);
+            if (val === currentAnswer) {
+                score++;
+                scoreEl.textContent = score;
+                feedbackEl.textContent = "正解！";
+                feedbackEl.className = "ok";
+                nextQuestion();
+            } else {
+                feedbackEl.textContent = "不正解…";
+                feedbackEl.className = "ng";
+                questionEl.classList.remove("shake");
+                void questionEl.offsetWidth;
+                questionEl.classList.add("shake");
+            }
+            answerEl.value = "";
+        }
+
+        answerEl.addEventListener("keydown", (e) => {
+            if (e.key === "Enter") checkAnswer();
+        });
+
+        startBtn.addEventListener("click", startGame);
+    </script>
 </body>
 </html>
